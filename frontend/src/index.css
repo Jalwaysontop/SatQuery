@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background-color: #0a0e1a;
+    color: #f3f4f6;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom Scrollbar for sidebar and queries */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 20, 32, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Starfield particle animation */
+.star {
+  position: absolute;
+  background-color: #ffffff;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Earth Sphere & Atmosphere Glow */
+.earth-sphere {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #38bdf8 0%, #0284c7 20%, #1d4ed8 50%, #0f172a 85%, #020617 100%);
+  box-shadow: 
+    0 0 60px 15px rgba(59, 130, 246, 0.35),
+    0 0 120px 40px rgba(37, 99, 235, 0.2),
+    inset -30px -30px 60px rgba(2, 6, 23, 0.95),
+    inset 15px 15px 35px rgba(186, 230, 253, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.earth-atmosphere {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 65%, rgba(56, 189, 248, 0.35) 90%, rgba(96, 165, 250, 0.7) 100%);
+  pointer-events: none;
+}
