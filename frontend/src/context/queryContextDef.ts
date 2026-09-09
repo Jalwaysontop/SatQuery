@@ -27,11 +27,42 @@ export interface AttachedFile {
 export interface GeoContext {
   regionName: string;
   country?: string;
-  bbox?: [number, number, number, number] | null; // [minLon, minLat, maxLon, maxLat]
+  bbox?: [number, number, number, number] | null;
   coordinates?: { lat: number; lon: number };
   sensor: 'auto' | 'sentinel2_optical' | 'sentinel1_sar' | 'fusion_optical_sar' | 'landsat9';
   language: string;
 }
+
+// ─── Chat Types ──────────────────────────────────────────────────────────────
+
+export type ChatRole = 'user' | 'assistant';
+
+export interface ChatMessage {
+  id: string;
+  role: ChatRole;
+  text: string;
+  timestamp: number;
+  /** Files attached by the user (only on role='user' messages) */
+  attachedFiles?: { name: string; size: number; category: FileModalityCategory }[];
+  /** Metadata surfaced on assistant messages */
+  meta?: {
+    model?: string;
+    confidence?: number;       // 0–100
+    sensor?: string;
+    region?: string;
+    isLoading?: boolean;
+  };
+}
+
+/** A complete conversation keyed by its ID (same as the StoredQuery ID) */
+export interface Conversation {
+  id: string;
+  query: string;        // the original question text
+  messages: ChatMessage[];
+  timestamp: number;
+}
+
+// ─── Context Shape ────────────────────────────────────────────────────────────
 
 export interface QueryContextType {
   recentQueries: StoredQuery[];
@@ -43,7 +74,19 @@ export interface QueryContextType {
   handleQuerySubmit: (text: string) => void;
   prefillQuery: (text: string) => void;
   clearRecentQueries: () => void;
-  
+
+  // Chat mode
+  chatMode: boolean;
+  setChatMode: (on: boolean) => void;
+  chatMessages: ChatMessage[];      // messages of the ACTIVE conversation
+  clearChat: () => void;
+
+  // Conversation history (each query gets its own isolated thread)
+  conversations: Record<string, Conversation>;
+  activeConversationId: string | null;
+  /** Load a past conversation by ID — does NOT re-run the query */
+  loadConversation: (id: string) => void;
+
   // File attachments
   attachedFiles: AttachedFile[];
   addAttachedFiles: (files: FileList | File[], category?: FileModalityCategory) => void;

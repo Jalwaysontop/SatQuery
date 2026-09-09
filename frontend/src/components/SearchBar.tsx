@@ -29,7 +29,7 @@ const suggestionChips = [
   'Detect deforestation in this region',
 ];
 
-export const SearchBar: React.FC = () => {
+export const SearchBar: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -118,7 +118,7 @@ export const SearchBar: React.FC = () => {
     geoContext.language !== 'en-US';
 
   return (
-    <div className="w-full max-w-[840px] mx-auto px-4 z-20 relative my-2">
+    <div className={`w-full max-w-[840px] mx-auto px-4 z-20 relative ${compact ? '' : 'my-2'}`}>
       {/* File Upload Modal */}
       <FileUploadModal />
 
@@ -346,7 +346,8 @@ export const SearchBar: React.FC = () => {
         </div>
       )}
 
-      {/* Suggestion Chips Below Search Bar */}
+      {/* Suggestion Chips Below Search Bar — hidden in compact/chat mode */}
+      {!compact && (
       <div className="flex flex-wrap items-center justify-center gap-2 mt-3.5 text-xs">
         <span className="text-gray-400 font-medium flex items-center gap-1">
           <Sparkles className="w-3 h-3 text-blue-400" />
@@ -370,6 +371,7 @@ export const SearchBar: React.FC = () => {
           </button>
         ))}
       </div>
+      )}
 
       {/* Dismissible Placeholder Response Card */}
       {showPlaceholderResponse && (

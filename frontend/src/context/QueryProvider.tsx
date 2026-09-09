@@ -4,7 +4,9 @@ import {
   type StoredQuery,
   type AttachedFile,
   type FileModalityCategory,
-  type GeoContext
+  type GeoContext,
+  type ChatMessage,
+  type Conversation,
 } from './queryContextDef';
 
 const STORAGE_KEY = 'satquery_recent_queries';
@@ -17,15 +19,59 @@ const defaultGeoContext: GeoContext = {
   language: 'en-US',
 };
 
+// ─── Placeholder response routing ─────────────────────────────────────────────
+function getPlaceholderResponse(query: string, sensor: string) {
+  const q = query.toLowerCase();
+  if (q.includes('flood') || q.includes('water') || q.includes('sar')) {
+    return {
+      text: 'SAR imagery analysis queued. The Sentinel-1 SAR specialist model would detect water body extents using backscatter intensity thresholding (VV/VH polarisation). Flood extent and affected zone mapping would be returned with a bounding polygon overlay.',
+      model: 'Sentinel-1 SAR Flood Detector',
+      confidence: 87,
+    };
+  }
+  if (q.includes('change') || q.includes('before') || q.includes('after') || q.includes('between')) {
+    return {
+      text: 'Bi-temporal change detection queued. The change detection specialist would co-register the two images, compute per-pixel difference maps, and classify changed regions by type (urban growth, vegetation loss, water extent change). A confidence-scored change map would be returned.',
+      model: 'Change Detection Model (Bi-temporal)',
+      confidence: 91,
+    };
+  }
+  if (q.includes('deforest') || q.includes('forest') || q.includes('vegetation') || q.includes('ndvi') || q.includes('crop')) {
+    return {
+      text: 'Vegetation analysis queued. The optical VQA model would compute NDVI, EVI, and SAVI indices from Sentinel-2 NIR/Red bands to classify vegetation health, detect stressed zones, and quantify canopy coverage changes.',
+      model: 'Sentinel-2 Vegetation Analyst',
+      confidence: 89,
+    };
+  }
+  if (q.includes('land use') || q.includes('classify') || q.includes('class') || q.includes('urban')) {
+    return {
+      text: 'Land-use classification queued. The VQA specialist model would segment the scene into LULC classes (urban, agricultural, forest, water, barren) using multi-spectral band combinations. A pixel-wise classification map with class confidence scores would be returned.',
+      model: 'LULC VQA Classifier',
+      confidence: 84,
+    };
+  }
+  if (sensor === 'fusion_optical_sar') {
+    return {
+      text: 'Optical + SAR cross-modal fusion queued. The fusion model would jointly embed both modalities to answer questions that neither sensor could fully resolve alone — combining spectral richness of optical data with the all-weather penetration of SAR.',
+      model: 'Cross-Modal Fusion Model',
+      confidence: 93,
+    };
+  }
+  return {
+    text: 'Query received. The agentic controller has dispatched this to the appropriate specialist model. Backend integration is pending — once connected, results will include detailed land-use classification, change detection statistics, or sensor fusion output here.',
+    model: 'Agentic Router (Placeholder)',
+    confidence: 0,
+  };
+}
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
 export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [recentQueries, setRecentQueries] = useState<StoredQuery[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (err) {
       console.error('Failed to load recent queries from localStorage:', err);
@@ -37,15 +83,26 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [lastSubmittedQuery, setLastSubmittedQuery] = useState<string | null>(null);
   const [showPlaceholderResponse, setShowPlaceholderResponse] = useState(false);
 
-  // File Attachments
+  // ── Chat state ──
+  const [chatMode, setChatMode] = useState(false);
+  /** All conversations keyed by their ID */
+  const [conversations, setConversations] = useState<Record<string, Conversation>>({});
+  /** Which conversation is currently displayed */
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+
+  // Derived: messages of the active conversation
+  const chatMessages: ChatMessage[] =
+    activeConversationId ? (conversations[activeConversationId]?.messages ?? []) : [];
+
+  // ── File Attachments ──
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-  // Geographic Context (Globe)
+  // ── Geographic Context ──
   const [geoContext, setGeoContext] = useState<GeoContext>(defaultGeoContext);
   const [isGeoModalOpen, setIsGeoModalOpen] = useState(false);
 
-  // Voice Interaction
+  // ── Voice ──
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
 
@@ -58,9 +115,7 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [recentQueries]);
 
-  /**
-   * Helper to infer modality category from filename if not explicitly chosen
-   */
+  // ── File helpers ─────────────────────────────────────────────────────────────
   const inferCategory = (filename: string): FileModalityCategory => {
     const lower = filename.toLowerCase();
     if (lower.includes('sar') && (lower.includes('t2') || lower.includes('post'))) return 'sar_t2';
@@ -75,126 +130,198 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const fileArray = Array.from(files);
     const newItems: AttachedFile[] = fileArray.map((file) => {
       const category = explicitCategory || inferCategory(file.name);
-      let previewUrl: string | undefined = undefined;
+      let previewUrl: string | undefined;
       if (file.type.startsWith('image/') && !file.name.toLowerCase().endsWith('.tif') && !file.name.toLowerCase().endsWith('.tiff')) {
-        try {
-          previewUrl = URL.createObjectURL(file);
-        } catch {
-          // Ignore preview URL failures for non-blob objects
-        }
+        try { previewUrl = URL.createObjectURL(file); } catch { /* ignore */ }
       }
       return {
         id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        file,
-        name: file.name,
-        size: file.size,
+        file, name: file.name, size: file.size,
         type: file.type || 'application/octet-stream',
-        category,
-        previewUrl,
+        category, previewUrl,
       };
     });
-
     setAttachedFiles((prev) => [...prev, ...newItems]);
   }, []);
 
   const removeAttachedFile = useCallback((id: string) => {
     setAttachedFiles((prev) => {
       const target = prev.find((f) => f.id === id);
-      if (target?.previewUrl) {
-        try {
-          URL.revokeObjectURL(target.previewUrl);
-        } catch {
-          // Ignore revoke error
-        }
-      }
+      if (target?.previewUrl) { try { URL.revokeObjectURL(target.previewUrl); } catch { /* ignore */ } }
       return prev.filter((f) => f.id !== id);
     });
   }, []);
 
   const clearAttachedFiles = useCallback(() => {
     setAttachedFiles((prev) => {
-      prev.forEach((f) => {
-        if (f.previewUrl) {
-          try {
-            URL.revokeObjectURL(f.previewUrl);
-          } catch {
-            // Ignore
-          }
-        }
-      });
+      prev.forEach((f) => { if (f.previewUrl) { try { URL.revokeObjectURL(f.previewUrl); } catch { /* ignore */ } } });
       return [];
     });
   }, []);
 
   const updateFileCategory = useCallback((id: string, category: FileModalityCategory) => {
-    setAttachedFiles((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, category } : item))
-    );
+    setAttachedFiles((prev) => prev.map((item) => (item.id === id ? { ...item, category } : item)));
   }, []);
 
-  /**
-   * Main query submission handler.
-   * Logs query, stores in state + localStorage, resets input, and triggers placeholder feedback.
-   */
+  // ── Helper: mutate one conversation's messages ────────────────────────────────
+  const setConversationMessages = useCallback((convId: string, updater: (prev: ChatMessage[]) => ChatMessage[]) => {
+    setConversations((prev) => {
+      const conv = prev[convId];
+      if (!conv) return prev;
+      return { ...prev, [convId]: { ...conv, messages: updater(conv.messages) } };
+    });
+  }, []);
+
+  // ── handleQuerySubmit ────────────────────────────────────────────────────────
+  //   • chatMode=true  → append to the CURRENT conversation (no new sidebar entry)
+  //   • chatMode=false → start a NEW conversation + add to recent queries (no dedup)
   const handleQuerySubmit = useCallback((text: string) => {
     const trimmed = text.trim();
     if (!trimmed && attachedFiles.length === 0) return;
 
     const queryDisplay = trimmed || `Analyze uploaded imagery (${attachedFiles.length} file${attachedFiles.length > 1 ? 's' : ''})`;
+    const now = Date.now();
+    const msgId = `${now}-${Math.random().toString(36).substring(2, 7)}`;
+    const loadingId = `${msgId}-loading`;
 
-    // 1. Add query to Recent Queries (newest first, max 10)
-    const newEntry: StoredQuery = {
-      id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    const userMessage: ChatMessage = {
+      id: `${msgId}-user`,
+      role: 'user',
       text: queryDisplay,
-      timestamp: Date.now(),
+      timestamp: now,
+      attachedFiles: attachedFiles.map((f) => ({ name: f.name, size: f.size, category: f.category })),
     };
 
-    setRecentQueries((prev) => {
-      const filtered = prev.filter((item) => item.text.toLowerCase() !== queryDisplay.toLowerCase());
-      return [newEntry, ...filtered].slice(0, MAX_RECENT_QUERIES);
-    });
+    const loadingMessage: ChatMessage = {
+      id: loadingId,
+      role: 'assistant',
+      text: '',
+      timestamp: now + 1,
+      meta: { isLoading: true, model: 'Routing…', sensor: geoContext.sensor, region: geoContext.regionName },
+    };
 
-    // 2. Set last submitted query and trigger placeholder UI response
-    setLastSubmittedQuery(queryDisplay);
-    setShowPlaceholderResponse(true);
-
-    // 3. Clear search input
+    const placeholder = getPlaceholderResponse(queryDisplay, geoContext.sensor);
     setSearchQuery('');
+    setLastSubmittedQuery(queryDisplay);
+    setShowPlaceholderResponse(false);
 
-    console.log('[SatQuery Engine] Query submitted:', {
+    // ── Branch A: already in a chat → CONTINUE the current conversation ─────
+    if (chatMode && activeConversationId) {
+      const targetId = activeConversationId;
+      setConversations((prev) => {
+        const conv = prev[targetId];
+        if (!conv) return prev;
+        return {
+          ...prev,
+          [targetId]: { ...conv, messages: [...conv.messages, userMessage, loadingMessage] },
+        };
+      });
+
+      // Move this conversation to top of recent queries stack
+      setRecentQueries((prev) => {
+        const existingIndex = prev.findIndex((q) => q.id === targetId);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          const [entry] = updated.splice(existingIndex, 1);
+          updated.unshift({ ...entry, timestamp: now });
+          return updated.slice(0, MAX_RECENT_QUERIES);
+        }
+        // Fallback: conversation exists but not in recent queries (shouldn't happen)
+        const conv = conversations[targetId];
+        if (conv) {
+          return [{ id: targetId, text: conv.query, timestamp: now }, ...prev].slice(0, MAX_RECENT_QUERIES);
+        }
+        return prev;
+      });
+
+      setTimeout(() => {
+        setConversations((prev) => {
+          const conv = prev[targetId];
+          if (!conv) return prev;
+          return {
+            ...prev,
+            [targetId]: {
+              ...conv,
+              messages: conv.messages.map((msg) =>
+                msg.id === loadingId
+                  ? { ...msg, text: placeholder.text, meta: { isLoading: false, model: placeholder.model, confidence: placeholder.confidence, sensor: geoContext.sensor, region: geoContext.regionName } }
+                  : msg
+              ),
+            },
+          };
+        });
+      }, 1400);
+
+      return; // ← do NOT create a new recent-query entry
+    }
+
+    // ── Branch B: landing page → start a NEW conversation ───────────────────
+    const convId = msgId;
+    const newConversation: Conversation = {
+      id: convId,
       query: queryDisplay,
-      attachedFiles: attachedFiles.map((f) => ({ name: f.name, size: f.size, category: f.category })),
-      geoContext,
-    });
+      messages: [userMessage, loadingMessage],
+      timestamp: now,
+    };
 
-    // TODO: replace with POST /api/v1/analyze (FastAPI backend integration)
-    // Build multipart/form-data payload:
-    // const formData = new FormData();
-    // formData.append('query', queryDisplay);
-    // attachedFiles.forEach(item => {
-    //   if (item.category === 'optical_t1') formData.append('optical_t1_files', item.file);
-    //   else if (item.category === 'optical_t2') formData.append('optical_t2_files', item.file);
-    //   else if (item.category === 'sar_t1') formData.append('sar_t1_files', item.file);
-    //   else if (item.category === 'sar_t2') formData.append('sar_t2_files', item.file);
-    // });
-    // const res = await fetch('http://127.0.0.1:8000/api/v1/analyze', { method: 'POST', body: formData });
-    // const data = await res.json();
-  }, [attachedFiles, geoContext]);
+    setConversations((prev) => ({ ...prev, [convId]: newConversation }));
+    setActiveConversationId(convId);
+    setChatMode(true);
+
+    // Add to recent queries — NO dedup removal, always prepend
+    const newEntry: StoredQuery = { id: convId, text: queryDisplay, timestamp: now };
+    setRecentQueries((prev) => [newEntry, ...prev].slice(0, MAX_RECENT_QUERIES));
+
+    setTimeout(() => {
+      setConversations((prev) => {
+        const conv = prev[convId];
+        if (!conv) return prev;
+        return {
+          ...prev,
+          [convId]: {
+            ...conv,
+            messages: conv.messages.map((msg) =>
+              msg.id === loadingId
+                ? { ...msg, text: placeholder.text, meta: { isLoading: false, model: placeholder.model, confidence: placeholder.confidence, sensor: geoContext.sensor, region: geoContext.regionName } }
+                : msg
+            ),
+          },
+        };
+      });
+    }, 1400);
+
+    console.log('[SatQuery Engine] New conversation started:', { id: convId, query: queryDisplay, geoContext });
+    // TODO: replace with POST /api/v1/analyze
+  }, [attachedFiles, geoContext, chatMode, activeConversationId]);
 
   /**
-   * Prefills search bar without auto-submitting
+   * Load a PAST conversation from history — switches active conversation WITHOUT
+   * re-running the query. This is what sidebar "Recent Queries" clicks should call.
    */
+  const loadConversation = useCallback((id: string) => {
+    if (!conversations[id]) {
+      console.warn('[SatQuery] Conversation not found in memory:', id);
+      return;
+    }
+    setActiveConversationId(id);
+    setChatMode(true);
+  }, [conversations]);
+
   const prefillQuery = useCallback((text: string) => {
     setSearchQuery(text);
   }, []);
 
   const clearRecentQueries = useCallback(() => {
     setRecentQueries([]);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (err) {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (err) {
       console.error('Failed to clear recent queries from localStorage:', err);
     }
+  }, []);
+
+  const clearChat = useCallback(() => {
+    setActiveConversationId(null);
+    setChatMode(false);
+    setLastSubmittedQuery(null);
   }, []);
 
   return (
@@ -209,6 +336,13 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         handleQuerySubmit,
         prefillQuery,
         clearRecentQueries,
+        chatMode,
+        setChatMode,
+        chatMessages,
+        clearChat,
+        conversations,
+        activeConversationId,
+        loadConversation,
         attachedFiles,
         addAttachedFiles,
         removeAttachedFile,

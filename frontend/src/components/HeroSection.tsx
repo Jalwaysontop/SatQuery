@@ -53,7 +53,7 @@ export const HeroSection: React.FC = () => {
           <div className="mt-8 max-w-xl">
             <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-3 flex items-center gap-2 font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-              <span>CAPABILITIES & PRESETS</span>
+              <span>Capabilities</span>
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {Object.keys(topicPrefillMap).map((topic) => (
