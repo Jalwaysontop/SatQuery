@@ -61,6 +61,21 @@ def test_single_image_describe_request_is_captioning():
     assert classify(bundle) == TaskType.CAPTIONING
 
 
+def test_single_image_find_request_is_grounding():
+    bundle = InputBundle(query="Find all vehicles.", optical_t1=_scene())
+    assert classify(bundle) == TaskType.GROUNDING
+
+
+def test_single_image_locate_request_is_grounding():
+    bundle = InputBundle(query="Locate all ships in this image.", sar_t1=_scene(Modality.SAR))
+    assert classify(bundle) == TaskType.GROUNDING
+
+
+def test_single_image_bounding_box_request_is_grounding_not_captioning():
+    bundle = InputBundle(query="Draw bounding boxes around every building.", optical_t1=_scene())
+    assert classify(bundle) == TaskType.GROUNDING
+
+
 def test_no_images_raises_validation_error():
     with pytest.raises(ValidationFailed):
         classify(InputBundle(query="anything"))

@@ -20,6 +20,11 @@ peft
 accelerate
 torchvision
 
+# text_guided_grounding: Qwen2.5-VL-3B + grounding LoRA adapter (latest_adapter/).
+# Requires a CUDA GPU; see satquery_grounding_inference.py.
+bitsandbytes
+qwen-vl-utils
+
 # Testing
 pytest
 pytest-asyncio

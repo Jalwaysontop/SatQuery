@@ -11,7 +11,7 @@ from pathlib import Path
 from app.agent.controller import AgentRunResult, run as run_agent
 from app.config import get_settings
 from app.db import insert_execution
-from app.schemas import AnalyzeResponse, ChangedRegion, ExecutionSummary
+from app.schemas import AnalyzeResponse, ChangedRegion, ExecutionSummary, GroundedRegion, TaskType
 from app.types import InputBundle
 
 
@@ -58,13 +58,23 @@ def run_analysis(bundle: InputBundle, api_key_hash: str) -> AnalyzeResponse:
         }
     )
 
+    is_grounding = agent_result.task == TaskType.GROUNDING
+    regions = None
+    grounded_regions = None
+    if tool_result.regions:
+        if is_grounding:
+            grounded_regions = [GroundedRegion(**r) for r in tool_result.regions]
+        else:
+            regions = [ChangedRegion(**r) for r in tool_result.regions]
+
     return AnalyzeResponse(
         execution_id=execution_id,
         task=agent_result.task,
         answer=tool_result.answer,
         confidence=tool_result.confidence,
         change_percentage=tool_result.change_percentage,
-        regions=[ChangedRegion(**r) for r in tool_result.regions] if tool_result.regions else None,
+        regions=regions,
+        grounded_regions=grounded_regions,
         image_urls=image_urls,
         execution_summary=ExecutionSummary(
             task=agent_result.task,

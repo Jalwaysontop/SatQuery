@@ -8,6 +8,7 @@ from app.tools.base import Tool
 from app.tools.caption_tool import CaptioningTool
 from app.tools.change_tool import ChangeVqaTool
 from app.tools.fusion_tool import CrossModalFusionTool
+from app.tools.grounding_tool import TextGuidedGroundingTool
 from app.tools.vqa_tool import SingleImageVqaTool
 
 _REGISTRY: dict[TaskType, Tool] = {
@@ -15,6 +16,7 @@ _REGISTRY: dict[TaskType, Tool] = {
     TaskType.CAPTIONING: CaptioningTool(),
     TaskType.CHANGE_VQA: ChangeVqaTool(),
     TaskType.CROSS_MODAL_FUSION: CrossModalFusionTool(),
+    TaskType.GROUNDING: TextGuidedGroundingTool(),
 }
 
 
@@ -31,6 +33,15 @@ def list_tools() -> list[ToolDescriptor]:
 
             if not get_settings().gemini_api_key:
                 status = "degraded (GEMINI_API_KEY unset: quantitative results only)"
+        elif task == TaskType.GROUNDING:
+            from pathlib import Path
+
+            from app.config import get_settings
+
+            if not Path(get_settings().grounding_adapter_dir).is_dir():
+                status = "degraded (grounding adapter not found at grounding_adapter_dir)"
+            else:
+                status = "ready (requires a CUDA GPU at inference time)"
         elif not tool.domain_adapted:
             status = "ready (generic VLM, not remote-sensing fine-tuned)"
         descriptors.append(

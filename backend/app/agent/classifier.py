@@ -25,6 +25,16 @@ _CAPTION_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+# Detection/localization verbs, not description verbs — "find the airport",
+# "locate all ships", "draw a bounding box around the runway". Checked before
+# _CAPTION_PATTERNS so a request for pixel coordinates isn't mistaken for a
+# scene description.
+_GROUNDING_PATTERNS = re.compile(
+    r"\b(find|locate|detect|spot|point (to|out)|bounding box(es)?|"
+    r"draw (a |the )?box(es)?|mark (all|the|every))\b",
+    re.IGNORECASE,
+)
+
 
 def classify(bundle: InputBundle) -> TaskType:
     if bundle.has_bitemporal:
@@ -37,6 +47,8 @@ def classify(bundle: InputBundle) -> TaskType:
         return TaskType.CROSS_MODAL_FUSION
 
     if bundle.single_image is not None:
+        if _GROUNDING_PATTERNS.search(bundle.query) and "?" not in bundle.query:
+            return TaskType.GROUNDING
         if _CAPTION_PATTERNS.search(bundle.query) and "?" not in bundle.query:
             return TaskType.CAPTIONING
         return TaskType.VQA

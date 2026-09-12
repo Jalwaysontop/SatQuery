@@ -1,9 +1,9 @@
 """
 Single-image captioning / scene description — the product spec's second
-mandatory single-image task (chosen over text-guided region grounding:
-grounding needs pixel-accurate bounding boxes, which a general-purpose VLM
-cannot reliably produce for remote-sensing imagery without adaptation;
-captioning degrades gracefully to a general but honest description).
+mandatory single-image task. Text-guided region grounding (which needs
+pixel-accurate bounding boxes a general-purpose VLM can't reliably produce
+for remote-sensing imagery without adaptation) is its own specialist, see
+grounding_tool.py, now that a grounding-adapted LoRA exists.
 """
 from __future__ import annotations
 

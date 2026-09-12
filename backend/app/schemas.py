@@ -10,6 +10,7 @@ class TaskType(str, Enum):
     CAPTIONING = "single_image_captioning"
     CHANGE_VQA = "change_vqa"
     CROSS_MODAL_FUSION = "cross_modal_fusion"
+    GROUNDING = "text_guided_grounding"
 
 
 class ChangedRegion(BaseModel):
@@ -17,6 +18,12 @@ class ChangedRegion(BaseModel):
     bbox_px: list[int]
     area_m2: float
     mean_confidence: float
+    centroid_px: list[float]
+
+
+class GroundedRegion(BaseModel):
+    region_id: int
+    bbox_px: list[int]  # [x, y, w, h]
     centroid_px: list[float]
 
 
@@ -36,6 +43,7 @@ class AnalyzeResponse(BaseModel):
     confidence: float | None = None
     change_percentage: float | None = None
     regions: list[ChangedRegion] | None = None
+    grounded_regions: list[GroundedRegion] | None = None
     image_urls: dict[str, str] = Field(default_factory=dict)
     execution_summary: ExecutionSummary
     report_url: str
