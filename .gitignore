@@ -1,3 +1,8 @@
+# Node / Frontend
+node_modules/
+.vite/
+dist/
+
 # Virtual environment
 venv/
 .venv/
