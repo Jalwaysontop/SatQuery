@@ -8,6 +8,7 @@ import {
   type ChatMessage,
   type Conversation,
 } from './queryContextDef';
+import { analyzeQuery, fetchImageAsObjectUrl, ApiError, type UploadGroup } from '../utils/api';
 
 const STORAGE_KEY = 'satquery_recent_queries';
 const MAX_RECENT_QUERIES = 10;
@@ -19,50 +20,16 @@ const defaultGeoContext: GeoContext = {
   language: 'en-US',
 };
 
-// ─── Placeholder response routing ─────────────────────────────────────────────
-function getPlaceholderResponse(query: string, sensor: string) {
-  const q = query.toLowerCase();
-  if (q.includes('flood') || q.includes('water') || q.includes('sar')) {
-    return {
-      text: 'SAR imagery analysis queued. The Sentinel-1 SAR specialist model would detect water body extents using backscatter intensity thresholding (VV/VH polarisation). Flood extent and affected zone mapping would be returned with a bounding polygon overlay.',
-      model: 'Sentinel-1 SAR Flood Detector',
-      confidence: 87,
-    };
-  }
-  if (q.includes('change') || q.includes('before') || q.includes('after') || q.includes('between')) {
-    return {
-      text: 'Bi-temporal change detection queued. The change detection specialist would co-register the two images, compute per-pixel difference maps, and classify changed regions by type (urban growth, vegetation loss, water extent change). A confidence-scored change map would be returned.',
-      model: 'Change Detection Model (Bi-temporal)',
-      confidence: 91,
-    };
-  }
-  if (q.includes('deforest') || q.includes('forest') || q.includes('vegetation') || q.includes('ndvi') || q.includes('crop')) {
-    return {
-      text: 'Vegetation analysis queued. The optical VQA model would compute NDVI, EVI, and SAVI indices from Sentinel-2 NIR/Red bands to classify vegetation health, detect stressed zones, and quantify canopy coverage changes.',
-      model: 'Sentinel-2 Vegetation Analyst',
-      confidence: 89,
-    };
-  }
-  if (q.includes('land use') || q.includes('classify') || q.includes('class') || q.includes('urban')) {
-    return {
-      text: 'Land-use classification queued. The VQA specialist model would segment the scene into LULC classes (urban, agricultural, forest, water, barren) using multi-spectral band combinations. A pixel-wise classification map with class confidence scores would be returned.',
-      model: 'LULC VQA Classifier',
-      confidence: 84,
-    };
-  }
-  if (sensor === 'fusion_optical_sar') {
-    return {
-      text: 'Optical + SAR cross-modal fusion queued. The fusion model would jointly embed both modalities to answer questions that neither sensor could fully resolve alone — combining spectral richness of optical data with the all-weather penetration of SAR.',
-      model: 'Cross-Modal Fusion Model',
-      confidence: 93,
-    };
-  }
-  return {
-    text: 'Query received. The agentic controller has dispatched this to the appropriate specialist model. Backend integration is pending — once connected, results will include detailed land-use classification, change detection statistics, or sensor fusion output here.',
-    model: 'Agentic Router (Placeholder)',
-    confidence: 0,
-  };
-}
+// The backend's /api/v1/analyze endpoint only accepts these four upload
+// groups (see backend/app/routers/analyze.py); 'document'/'other' files
+// have no server-side handling yet and are excluded client-side instead of
+// being silently dropped by the request.
+const CATEGORY_TO_UPLOAD_GROUP: Partial<Record<FileModalityCategory, UploadGroup>> = {
+  optical_t1: 'optical_t1_files',
+  optical_t2: 'optical_t2_files',
+  sar_t1: 'sar_t1_files',
+  sar_t2: 'sar_t2_files',
+};
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -172,6 +139,95 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
   }, []);
 
+  // ── runAnalysis: POST /api/v1/analyze and resolve the loading bubble ────────
+  const runAnalysis = useCallback(
+    async (convId: string, loadingId: string, queryText: string, files: AttachedFile[]) => {
+      const filesByGroup: Partial<Record<UploadGroup, File[]>> = {};
+      const skippedFiles: string[] = [];
+      files.forEach((f) => {
+        const group = CATEGORY_TO_UPLOAD_GROUP[f.category];
+        if (!group) {
+          skippedFiles.push(f.name);
+          return;
+        }
+        (filesByGroup[group] ??= []).push(f.file);
+      });
+
+      const finish = (patch: Partial<ChatMessage>) => {
+        setConversationMessages(convId, (prev) =>
+          prev.map((msg) => (msg.id === loadingId ? { ...msg, ...patch } : msg))
+        );
+      };
+
+      const hasRequiredT1 =
+        (filesByGroup.optical_t1_files?.length ?? 0) > 0 || (filesByGroup.sar_t1_files?.length ?? 0) > 0;
+
+      if (!hasRequiredT1) {
+        finish({
+          text:
+            'At least one optical or SAR image is required to run analysis. Attach imagery with the paperclip icon and try again.',
+          meta: { isLoading: false, isError: true, model: 'SatQuery AI' },
+        });
+        return;
+      }
+
+      try {
+        const result = await analyzeQuery(queryText, filesByGroup);
+
+        let images: Record<string, string> | undefined;
+        const imageEntries = Object.entries(result.image_urls);
+        if (imageEntries.length > 0) {
+          const resolved = await Promise.all(
+            imageEntries.map(async ([name, url]) => [name, await fetchImageAsObjectUrl(url)] as const)
+          );
+          images = Object.fromEntries(resolved);
+        }
+
+        const warnings = [...result.execution_summary.warnings];
+        if (skippedFiles.length > 0) {
+          warnings.push(
+            `Not sent to the model (unsupported category): ${skippedFiles.join(', ')}.`
+          );
+        }
+
+        const confidencePct =
+          result.confidence != null
+            ? Math.round((result.confidence <= 1 ? result.confidence * 100 : result.confidence) * 10) / 10
+            : undefined;
+
+        const answerText =
+          result.answer ??
+          (result.change_percentage != null
+            ? `Change detection complete: ${result.change_percentage.toFixed(1)}% of the scene changed between T1 and T2.`
+            : 'Analysis complete.');
+
+        finish({
+          text: answerText,
+          meta: {
+            isLoading: false,
+            model: result.execution_summary.models_used.join(' + ') || 'SatQuery AI',
+            confidence: confidencePct,
+            sensor: geoContext.sensor,
+            region: geoContext.regionName,
+            executionId: result.execution_id,
+            task: result.task,
+            changePercentage: result.change_percentage,
+            regions: result.regions,
+            groundedRegions: result.grounded_regions,
+            images,
+            reportUrl: result.report_url,
+            warnings,
+          },
+        });
+      } catch (err) {
+        const message =
+          err instanceof ApiError ? err.message : 'Unexpected error contacting the SatQuery backend.';
+        finish({ text: message, meta: { isLoading: false, isError: true, model: 'SatQuery AI' } });
+      }
+    },
+    [setConversationMessages, geoContext]
+  );
+
   // ── handleQuerySubmit ────────────────────────────────────────────────────────
   //   • chatMode=true  → append to the CURRENT conversation (no new sidebar entry)
   //   • chatMode=false → start a NEW conversation + add to recent queries (no dedup)
@@ -183,6 +239,7 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const now = Date.now();
     const msgId = `${now}-${Math.random().toString(36).substring(2, 7)}`;
     const loadingId = `${msgId}-loading`;
+    const filesSnapshot = attachedFiles;
 
     const userMessage: ChatMessage = {
       id: `${msgId}-user`,
@@ -200,7 +257,6 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       meta: { isLoading: true, model: 'Routing…', sensor: geoContext.sensor, region: geoContext.regionName },
     };
 
-    const placeholder = getPlaceholderResponse(queryDisplay, geoContext.sensor);
     setSearchQuery('');
     setLastSubmittedQuery(queryDisplay);
     setShowPlaceholderResponse(false);
@@ -234,24 +290,7 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         return prev;
       });
 
-      setTimeout(() => {
-        setConversations((prev) => {
-          const conv = prev[targetId];
-          if (!conv) return prev;
-          return {
-            ...prev,
-            [targetId]: {
-              ...conv,
-              messages: conv.messages.map((msg) =>
-                msg.id === loadingId
-                  ? { ...msg, text: placeholder.text, meta: { isLoading: false, model: placeholder.model, confidence: placeholder.confidence, sensor: geoContext.sensor, region: geoContext.regionName } }
-                  : msg
-              ),
-            },
-          };
-        });
-      }, 1400);
-
+      void runAnalysis(targetId, loadingId, queryDisplay, filesSnapshot);
       return; // ← do NOT create a new recent-query entry
     }
 
@@ -272,27 +311,8 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const newEntry: StoredQuery = { id: convId, text: queryDisplay, timestamp: now };
     setRecentQueries((prev) => [newEntry, ...prev].slice(0, MAX_RECENT_QUERIES));
 
-    setTimeout(() => {
-      setConversations((prev) => {
-        const conv = prev[convId];
-        if (!conv) return prev;
-        return {
-          ...prev,
-          [convId]: {
-            ...conv,
-            messages: conv.messages.map((msg) =>
-              msg.id === loadingId
-                ? { ...msg, text: placeholder.text, meta: { isLoading: false, model: placeholder.model, confidence: placeholder.confidence, sensor: geoContext.sensor, region: geoContext.regionName } }
-                : msg
-            ),
-          },
-        };
-      });
-    }, 1400);
-
-    console.log('[SatQuery Engine] New conversation started:', { id: convId, query: queryDisplay, geoContext });
-    // TODO: replace with POST /api/v1/analyze
-  }, [attachedFiles, geoContext, chatMode, activeConversationId]);
+    void runAnalysis(convId, loadingId, queryDisplay, filesSnapshot);
+  }, [attachedFiles, geoContext, chatMode, activeConversationId, conversations, runAnalysis]);
 
   /**
    * Load a PAST conversation from history — switches active conversation WITHOUT
@@ -322,7 +342,10 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setActiveConversationId(null);
     setChatMode(false);
     setLastSubmittedQuery(null);
-  }, []);
+    // Imagery is scoped to the session it was uploaded for — carrying it
+    // into a brand-new session would silently resend stale files to /analyze.
+    clearAttachedFiles();
+  }, [clearAttachedFiles]);
 
   return (
     <QueryContext.Provider

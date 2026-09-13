@@ -1,4 +1,5 @@
 import { createContext } from 'react';
+import type { ChangedRegion, GroundedRegion, TaskType } from '../utils/api';
 
 export interface StoredQuery {
   id: string;
@@ -51,6 +52,17 @@ export interface ChatMessage {
     sensor?: string;
     region?: string;
     isLoading?: boolean;
+    isError?: boolean;
+    /** Backend execution id (AnalyzeResponse.execution_id), when the call succeeded */
+    executionId?: string;
+    task?: TaskType;
+    changePercentage?: number | null;
+    regions?: ChangedRegion[] | null;
+    groundedRegions?: GroundedRegion[] | null;
+    /** name -> local object URL (already fetched + authenticated) */
+    images?: Record<string, string>;
+    reportUrl?: string;
+    warnings?: string[];
   };
 }
 

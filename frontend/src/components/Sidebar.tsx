@@ -4,6 +4,7 @@ import {
   Home,
   FolderOpen,
   Settings,
+  Bookmark,
   Plus,
   Clock,
   PieChart,
@@ -58,11 +59,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
 }) => {
   const navigate = useNavigate();
-  const { recentQueries, handleQuerySubmit, clearChat, conversations, loadConversation } = useQueryContext();
+  const { recentQueries, clearChat, conversations, loadConversation } = useQueryContext();
 
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'My Data', path: '/my-data', icon: FolderOpen },
+    { name: 'Saved Results', path: '/saved-results', icon: Bookmark },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
@@ -72,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navigate('/');
   };
 
-  const handleSelectRecent = (id: string, text: string) => {
+  const handleSelectRecent = (id: string) => {
     onCloseMobile?.();
     navigate('/');
     if (conversations[id]) {
@@ -226,7 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   return (
                     <button
                       key={item.id}
-                      onClick={() => handleSelectRecent(item.id, item.text)}
+                      onClick={() => handleSelectRecent(item.id)}
                       className="w-full text-left p-2 rounded-lg hover:bg-[#101729] border border-transparent hover:border-slate-800/80 transition-all duration-150 group cursor-pointer"
                       title={item.text}
                     >
