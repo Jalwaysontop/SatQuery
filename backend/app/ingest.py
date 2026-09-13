@@ -53,6 +53,19 @@ async def _read_group(files: list[UploadFile] | None, group_name: str) -> dict[s
             )
         if len(content) == 0:
             raise ValidationFailed(f"{group_name}: '{name}' is empty.")
+        if name in out:
+            # Silently keying by filename would let a second same-named file
+            # (e.g. two "00025.png" from a T1 pre/post pair sent to the same
+            # group) overwrite the first — the bundle then sees one image
+            # instead of two and gets misclassified as a single-image task
+            # instead of change detection. Fail loudly instead.
+            raise ValidationFailed(
+                f"{group_name}: duplicate filename '{name}' — two different "
+                "uploads share this filename in the same group, which would "
+                "silently discard one of them. If this is a T1/T2 pair, "
+                "upload the second image under its own _t2 category instead.",
+                details={"field": group_name, "filename": name},
+            )
         out[name] = content
     return out
 

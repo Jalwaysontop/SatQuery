@@ -95,8 +95,25 @@ export const QueryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const addAttachedFiles = useCallback((files: FileList | File[], explicitCategory?: FileModalityCategory) => {
     const fileArray = Array.from(files);
+    // Change-detection datasets commonly reuse the exact same filename for
+    // the pre/post image of a pair (e.g. "00025.png" in separate T1/T2
+    // folders), which inferCategory can't tell apart by name alone — it
+    // infers both to the same *_t1 category. Left alone, that collapses the
+    // pair into one upload group server-side and silently drops the second
+    // image (see backend/app/ingest.py's duplicate-filename check). Alternate
+    // same-named files within one add-batch onto the paired _t2 category so
+    // dropping a T1/T2 pair together "just works".
+    const seenNames = new Map<string, number>();
     const newItems: AttachedFile[] = fileArray.map((file) => {
-      const category = explicitCategory || inferCategory(file.name);
+      let category = explicitCategory || inferCategory(file.name);
+      if (!explicitCategory) {
+        const occurrence = seenNames.get(file.name) ?? 0;
+        seenNames.set(file.name, occurrence + 1);
+        if (occurrence === 1) {
+          if (category === 'optical_t1') category = 'optical_t2';
+          else if (category === 'sar_t1') category = 'sar_t2';
+        }
+      }
       let previewUrl: string | undefined;
       if (file.type.startsWith('image/') && !file.name.toLowerCase().endsWith('.tif') && !file.name.toLowerCase().endsWith('.tiff')) {
         try { previewUrl = URL.createObjectURL(file); } catch { /* ignore */ }
