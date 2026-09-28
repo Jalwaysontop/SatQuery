@@ -35,23 +35,22 @@ class Settings(BaseSettings):
 
     # VQA_BACKEND selects the implementation behind the single-image VQA
     # tool. "gemini" calls Gemini directly. "qwen" uses the fine-tuned
-    # Qwen2.5-VL-3B + LoRA adapter (see VQA/inference.py, weights at
-    # final_qwen_lora/ in the repo root), bridged via tools/qwen_client.py.
+    # Qwen2.5-VL-3B + LoRA adapter (see ml/vqa/inference.py, weights at
+    # models/vqa-lora/), bridged via tools/qwen_client.py.
     vqa_backend: str = Field(default="gemini")
 
     # --- grounding (text-guided bounding-box) adapter -------------------------
     # Qwen2.5-VL-3B + a LoRA adapter fine-tuned for remote-sensing bounding-box
-    # grounding (see Grounding.ipynb, satquery_grounding_inference.py, weights
-    # at latest_adapter/ in the repo root), bridged via tools/grounding_client.py.
+    # grounding (see ml/grounding/, weights at models/grounding-lora/), bridged via tools/grounding_client.py.
     # Unlike VQA_BACKEND there is no generic-VLM fallback: producing pixel-
     # accurate boxes is exactly what needed the fine-tune, and the inference
     # module requires a CUDA GPU (no CPU path).
-    grounding_adapter_dir: str = Field(default=str(REPO_ROOT / "latest_adapter"))
+    grounding_adapter_dir: str = Field(default=str(REPO_ROOT / "models" / "grounding-lora"))
     grounding_model_id: str = Field(default="Qwen/Qwen2.5-VL-3B-Instruct")
 
     # --- change-detection checkpoint -----------------------------------------
     change_checkpoint_path: str = Field(
-        default=str(REPO_ROOT / "vqa_and_change_using_gemini" / "unified_changenet_best.pt")
+        default=str(REPO_ROOT / "models" / "change-detection" / "unified_changenet_best.pt")
     )
     change_device: str = Field(default="cpu")
 

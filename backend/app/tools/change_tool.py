@@ -22,8 +22,8 @@ from app.exceptions import UpstreamModelError, ValidationFailed
 from app.tools.base import Tool, ToolResult
 from app.tools.render import render_overlay
 from app.types import InputBundle
-from vqa_and_change_using_gemini.change_detection_module import ChangeDetector, load_change_detector
-from vqa_and_change_using_gemini.imaging import confidence_to_pil, pil_to_png_bytes
+from change_detection.change_detection_module import ChangeDetector, load_change_detector
+from change_detection.imaging import confidence_to_pil, pil_to_png_bytes
 
 _detector: ChangeDetector | None = None
 _detector_lock = threading.Lock()
@@ -52,12 +52,12 @@ def _ask_gemini_about_change(question: str, bundle: InputBundle, result: dict) -
     Prefers the existing, untouched Gemini change-VQA prompt (which expects
     13-band optical arrays) whenever optical imagery is available. Falls
     back to a modality-agnostic prompt, built here, for the SAR-only case
-    that `vqa_and_change_using_gemini/vqa.py` does not cover.
+    that `ml/change_detection/vqa.py` does not cover.
     """
     settings = get_settings()
     if bundle.optical_t1 is not None and bundle.optical_t2 is not None:
         os.environ.setdefault("GEMINI_API_KEY", settings.gemini_api_key or "")
-        from vqa_and_change_using_gemini.vqa import ask_change_vqa  # lazy: module-level API key check
+        from change_detection.vqa import ask_change_vqa  # lazy: module-level API key check
 
         # ask_change_vqa() calls the Gemini SDK directly, bypassing
         # gemini_client.generate_content_with_retry's retry/error-mapping.
@@ -77,7 +77,7 @@ def _ask_gemini_about_change(question: str, bundle: InputBundle, result: dict) -
                 time.sleep(2.0 * attempt)
         raise UpstreamModelError(f"Gemini change-VQA request failed after 3 attempt(s): {last_error}")
 
-    from vqa_and_change_using_gemini.vqa import create_region_summary  # pure text formatting, modality-agnostic
+    from change_detection.vqa import create_region_summary  # pure text formatting, modality-agnostic
 
     from app.tools.gemini_client import generate_content_with_retry
     from PIL import Image

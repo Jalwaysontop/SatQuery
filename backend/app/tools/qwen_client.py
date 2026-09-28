@@ -1,4 +1,4 @@
-"""Bridge to VQA/inference.py (Qwen2.5-VL-3B + SatQuery LoRA adapter), mirroring
+"""Bridge to ml/vqa/inference.py (Qwen2.5-VL-3B + SatQuery LoRA adapter), mirroring
 gemini_client.py's role for the Gemini backend.
 
 The import of `inference` (and the model load it triggers) is deferred into
@@ -15,7 +15,7 @@ from PIL.Image import Image
 from app.config import REPO_ROOT
 from app.exceptions import UpstreamModelError
 
-_VQA_DIR = REPO_ROOT / "VQA"
+_VQA_DIR = REPO_ROOT / "ml" / "vqa"
 
 
 @lru_cache

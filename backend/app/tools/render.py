@@ -1,7 +1,7 @@
 """
 Generic change-mask overlay renderer.
 
-`vqa_and_change_using_gemini/imaging.py::create_change_overlay` hard-codes
+`ml/change_detection/imaging.py::create_change_overlay` hard-codes
 an optical (13-band) -> RGB conversion internally, so it only works when an
 optical T2 image exists. This is the same drawing logic (mask + boxes +
 confidence labels) built on top of an already-computed (H, W, 3) uint8

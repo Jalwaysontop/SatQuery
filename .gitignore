@@ -20,6 +20,7 @@ __pycache__/
 # Environment variables / secrets
 .env
 .env.*
+!.env.example
 
 # IDEs
 .vscode/
@@ -62,8 +63,11 @@ htmlcov/
 # Large datasets
 data/
 datasets/
-models/
 checkpoints/
+
+# Model weights: keep configs/tokenizers under models/ tracked, ignore binaries.
+# The grounding adapter is the exception — it is versioned via Git LFS.
+!models/grounding-lora/adapter_model.safetensors
 
 # Temporary files
 *.tmp

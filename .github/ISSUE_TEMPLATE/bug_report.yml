@@ -1,0 +1,43 @@
+name: 🐛 Bug report
+description: Something isn't working as expected
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! For **security vulnerabilities**, follow SECURITY.md instead of filing an issue.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Backend API, Frontend, ML / models, Docs, CI / tooling]
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Upload optical T1 + T2 tiles
+        2. Ask "What changed?"
+        3. See error ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / error response
+      description: Include the `request_id` from the error JSON if you have it. Remove any API keys.
+      render: shell
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "macOS 15, Python 3.13, Node 22, VQA_BACKEND=gemini, CHANGE_DEVICE=cpu"

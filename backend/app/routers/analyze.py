@@ -25,7 +25,7 @@ async def analyze(
     downloadable execution report.
 
     Field naming (`t1_files` / `t2_files`) mirrors the existing convention
-    in `vqa_and_change_using_gemini/pipeline.py::run_change_detection`.
+    in `ml/change_detection/pipeline.py::run_change_detection`.
     """
     bundle = await build_input_bundle(
         query, optical_t1_files, optical_t2_files, sar_t1_files, sar_t2_files

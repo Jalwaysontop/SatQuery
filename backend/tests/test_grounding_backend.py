@@ -1,7 +1,7 @@
 """
 text_guided_grounding wiring, exercised through the real API. The actual
 Qwen2.5-VL-3B + grounding LoRA model requires a CUDA GPU (see
-satquery_grounding_inference.py) and is out of scope for CI, so
+ml/grounding/satquery_grounding_inference.py) and is out of scope for CI, so
 `run_grounding` is monkeypatched at the boundary the same way `run_qwen_vqa`
 is mocked in test_vqa_qwen_backend.py — everything above that boundary
 (classifier, controller, tool, response shaping) runs for real.

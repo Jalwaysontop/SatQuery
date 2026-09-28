@@ -25,8 +25,8 @@ os.environ.setdefault("DATA_DIR", _TMP_DATA_DIR)
 os.environ.setdefault("DB_PATH", str(Path(_TMP_DATA_DIR) / "test.db"))
 
 REPO_ROOT = BACKEND_DIR.parent
-SAMPLE_T1_DIR = REPO_ROOT / "vqa_and_change_using_gemini" / "imgs_1"
-SAMPLE_T2_DIR = REPO_ROOT / "vqa_and_change_using_gemini" / "imgs_2"
+SAMPLE_T1_DIR = REPO_ROOT / "ml" / "change_detection" / "samples" / "t1"
+SAMPLE_T2_DIR = REPO_ROOT / "ml" / "change_detection" / "samples" / "t2"
 
 
 @pytest.fixture(scope="session")

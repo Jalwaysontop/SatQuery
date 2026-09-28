@@ -1,5 +1,5 @@
-"""Bridge to satquery_grounding_inference.py (Qwen2.5-VL-3B + the grounding
-LoRA adapter at latest_adapter/ in the repo root), mirroring qwen_client.py's
+"""Bridge to ml/grounding/satquery_grounding_inference.py (Qwen2.5-VL-3B + the grounding
+LoRA adapter at models/grounding-lora/), mirroring qwen_client.py's
 role for the VQA backend.
 
 The import of `satquery_grounding_inference` (and the model load it
@@ -22,7 +22,7 @@ from app.exceptions import UpstreamModelError
 
 @lru_cache
 def _inference_module():
-    path = str(REPO_ROOT)
+    path = str(REPO_ROOT / "ml" / "grounding")
     if path not in sys.path:
         sys.path.insert(0, path)
     import satquery_grounding_inference as grounding_inference  # noqa: PLC0415 - deferred: loads a 3B model on first call

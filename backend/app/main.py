@@ -2,7 +2,7 @@
 SatQuery AI backend — agentic remote-sensing vision-language assistant.
 
 FastAPI was chosen because the only pre-existing hint of an intended HTTP
-layer in this repo (`vqa_and_change_using_gemini/pipeline.py` docstring:
+layer in this repo (`ml/change_detection/pipeline.py` docstring:
 "The actual HTTP layer (api.py) is a thin wrapper around
 run_change_detection()", and its use of `UploadFile.read()` semantics)
 already assumes it; there is no other backend framework anywhere in the

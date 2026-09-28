@@ -2,7 +2,7 @@
 SAR (Sentinel-1 style VV/VH) band ingestion.
 
 Mirrors the optical band-ingestion pattern already established in
-`vqa_and_change_using_gemini/pipeline.py::load_optical_bands_from_uploads`
+`ml/change_detection/pipeline.py::load_optical_bands_from_uploads`
 (in-memory bytes in, band-ordered (C, H, W) float32 array out, resampled
 onto a caller-supplied grid) so both modalities are ingested the same way.
 No SAR loader existed in the repo before this — `UnifiedChangeDetectionNet`

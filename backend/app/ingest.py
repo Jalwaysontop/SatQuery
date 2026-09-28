@@ -17,8 +17,8 @@ from app.config import get_settings
 from app.exceptions import ValidationFailed
 from app.sar_ingest import load_sar_bands_from_uploads, sar_to_grayscale_rgb
 from app.types import InputBundle, Modality, SceneImage, SourceKind
-from vqa_and_change_using_gemini.imaging import optical_to_rgb
-from vqa_and_change_using_gemini.pipeline import load_optical_bands_from_uploads
+from change_detection.imaging import optical_to_rgb
+from change_detection.pipeline import load_optical_bands_from_uploads
 
 GEOTIFF_EXTENSIONS = {".tif", ".tiff"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}

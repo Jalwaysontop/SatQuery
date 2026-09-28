@@ -1,8 +1,8 @@
 """
 Text-guided region grounding — locates objects named in the query and
-returns pixel bounding boxes, via `satquery_grounding_inference.py`
+returns pixel bounding boxes, via `ml/grounding/satquery_grounding_inference.py`
 (Qwen2.5-VL-3B-Instruct + the SatQuery grounding LoRA adapter, trained in
-Grounding.ipynb, weights at latest_adapter/ in the repo root).
+ml/grounding/Grounding.ipynb, weights at models/grounding-lora/).
 
 Previously out of scope (see caption_tool.py's original rationale): a
 general-purpose VLM cannot reliably produce pixel-accurate boxes for

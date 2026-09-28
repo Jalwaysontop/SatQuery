@@ -5,10 +5,10 @@ VQA_BACKEND=gemini (current default) calls Gemini directly with a
 remote-sensing-framed prompt: a real, working integration, but not the
 domain-fine-tuned model the spec ultimately requires.
 
-VQA_BACKEND=qwen calls `VQA/inference.py` (Qwen2.5-VL-3B + a LoRA adapter
+VQA_BACKEND=qwen calls `ml/vqa/inference.py` (Qwen2.5-VL-3B + a LoRA adapter
 fine-tuned on BigEarthNet, satisfying the spec's mandatory
 remote-sensing-adaptation requirement) via `qwen_client.py`, loading
-`final_qwen_lora/` from the repo root.
+`models/vqa-lora/`.
 """
 from __future__ import annotations
 
