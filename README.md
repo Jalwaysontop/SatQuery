@@ -13,6 +13,7 @@ bi-temporal change detection — through one API and one chat-style web app.
 ![Node](https://img.shields.io/badge/node-22%2B-green)
 ![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688)
 ![React](https://img.shields.io/badge/frontend-React%2019%20%2B%20Vite-61dafb)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 </div>
 
@@ -32,6 +33,7 @@ bi-temporal change detection — through one API and one chat-style web app.
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Security](#security)
+- [License](#license)
 
 ## Overview
 
@@ -109,6 +111,7 @@ SatQuery/
 ├── docs/                    # Architecture & design documentation
 ├── .github/                 # CI workflows, issue / PR templates, Dependabot
 ├── Makefile                 # Common developer tasks
+├── LICENSE                  # MIT
 ├── CONTRIBUTING.md · SECURITY.md · CODE_OF_CONDUCT.md · CHANGELOG.md
 └── package.json             # Workspace scripts that proxy to frontend/
 ```
@@ -247,3 +250,7 @@ branch/commit conventions and the pre-PR checklist, and follow the
 
 Please **do not** open public issues for vulnerabilities. See
 [`SECURITY.md`](SECURITY.md) for how to report them privately.
+
+## License
+
+Released under the [MIT License](LICENSE).

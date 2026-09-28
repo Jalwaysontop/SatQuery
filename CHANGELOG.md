@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Unused `backend/models/latest_adapter/` duplicate (same LFS object, now at `models/grounding-lora/`).
 
 ### Added
+- `LICENSE` (MIT).
 - Root `README.md` and READMEs for `backend/`, `frontend/`, `ml/` (and each module), and `models/`.
 - `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`.
 - GitHub Actions CI (backend tests, frontend lint + build), issue/PR templates, Dependabot.
